@@ -56,7 +56,7 @@ https://github.com/STLoft/Codex-Usage
 ## 알아둘 점
 
 - Temperature·Top-p는 적용되지 않으며 최대 토큰은 길이 안내입니다. 텍스트 대화만 지원합니다.
-- Termux에서도 모델·잔량 조회를 시도하고 성공한 값을 표시합니다. [사용 방법](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md#잔량모델-조회)
+- 데스크탑·Termux 모두 app-server로 대화·모델·잔량을 연결합니다. [사용 방법](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md#잔량모델-조회)
 - 개발 베타입니다. **Windows·Android 에뮬레이터에서 연결 확인 · 실제 휴대폰 미검증**. macOS/Linux 실기기도 아직 검증하지 않았습니다.
 - OpenAI 또는 SillyTavern의 공식 확장은 아닙니다. 로그인 정보는 설치된 CLI가 관리합니다.
 
