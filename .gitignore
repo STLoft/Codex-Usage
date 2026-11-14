@@ -1,0 +1,8 @@
+node_modules/
+data/
+workspace/
+.env
+.env.*
+auth.json
+*.log
+.DS_Store
