@@ -9,8 +9,7 @@
 | 사용 환경 | 안내 |
 | --- | --- |
 | Windows / macOS / Linux | [데스크탑 설치](https://github.com/STLoft/Codex-Bridge/blob/main/docs/DESKTOP.md) |
-| 휴대폰에서 PC의 SillyTavern에 접속 | 위 데스크탑 안내를 따라 **PC에** 설치 |
-| Android 네이티브 터먹스 | [터먹스 설치](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md) |
+| Android Termux | [Termux 설치](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md) |
 
 ## 설치
 
@@ -23,7 +22,7 @@ https://github.com/STLoft/Codex-Usage
 
 3. 브라우저를 새로고침하고 확장 설정의 **Codex Usage**를 엽니다. 마법봉 메뉴의 **Codex Usage**로도 열 수 있습니다.
 
-데스크탑·터먹스 안내의 Git 명령으로 이미 두 구성요소를 설치했다면 확장 설치를 다시 할 필요는 없습니다. 서버 플러그인도 방금 설치했다면 서버 재시작도 필요합니다.
+데스크탑·Termux 안내의 Git 명령으로 이미 두 구성요소를 설치했다면 확장 설치를 다시 할 필요는 없습니다. 서버 플러그인도 방금 설치했다면 서버 재시작도 필요합니다.
 
 ## 모델 선택·연결
 
@@ -57,7 +56,7 @@ https://github.com/STLoft/Codex-Usage
 ## 알아둘 점
 
 - Temperature·Top-p는 적용되지 않으며 최대 토큰은 길이 안내입니다. 텍스트 대화만 지원합니다.
-- 터먹스에서는 공식 잔량·모델 자동 목록을 제공하지 않습니다.
+- 현재 Termux 연결 방식에서는 공식 잔량·모델 자동 조회를 지원하지 않습니다. [이유 보기](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md#잔량모델-조회가-제한되는-이유)
 - 개발 베타입니다. Windows에서 확인했고 macOS/Linux·Android 실기기는 아직 검증하지 않았습니다.
 - OpenAI 또는 SillyTavern의 공식 확장은 아닙니다. 로그인 정보는 설치된 CLI가 관리합니다.
 
