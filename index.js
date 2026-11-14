@@ -10,4 +10,4 @@ async function api(endpoint, body) {
     if (!res.ok || data.ok === false) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || `요청 실패 (${res.status})`);
     return data;
 }
-if (!document.getElementById('codex-usage-launcher')) mount({ api, connect });
+if (!document.getElementById('codex-usage-drawer')) mount({ api, connect });
