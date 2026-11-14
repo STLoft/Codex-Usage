@@ -56,7 +56,7 @@ https://github.com/STLoft/Codex-Usage
 ## 알아둘 점
 
 - Temperature·Top-p는 적용되지 않으며 최대 토큰은 길이 안내입니다. 텍스트 대화만 지원합니다.
-- 현재 Termux 연결 방식에서는 공식 잔량·모델 자동 조회를 지원하지 않습니다. [이유 보기](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md#잔량모델-조회가-제한되는-이유)
+- Termux 연결의 계정 잔량·모델 자동 조회는 아직 확장에 적용하지 않았습니다. [확인한 내용 보기](https://github.com/STLoft/Codex-Bridge/blob/main/docs/TERMUX.md#잔량모델-조회)
 - 개발 베타입니다. **Windows에서 연결 동작 확인 · Termux 실기기 미검증**. macOS/Linux 실기기도 아직 검증하지 않았습니다.
 - OpenAI 또는 SillyTavern의 공식 확장은 아닙니다. 로그인 정보는 설치된 CLI가 관리합니다.
 
