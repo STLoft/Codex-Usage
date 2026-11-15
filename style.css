@@ -166,6 +166,15 @@
 .cx-form2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .cx-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
+.cx-profile-box { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--cx-line); border-radius: var(--cx-radius); background: var(--cx-soft); min-width: 0; }
+.cx-profile-box .text_pole { width: 100%; min-width: 0; max-width: 100%; }
+.cx-profile-box input[readonly] { opacity: .75; background: var(--cx-track); }
+.cx-profile-save { justify-content: center; width: 100% !important; background: var(--cx-accent-soft); }
+.cx-profile-active { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--cx-accent); border-radius: var(--cx-radius); font-size: .9em; min-width: 0; }
+.cx-profile-active > b { flex: none; }
+.cx-profile-active > div { min-width: 0; overflow-wrap: anywhere; }
+.cx-profile-active small { display: block; color: var(--cx-dim); margin-top: 2px; }
+
 /* ── 좁은 화면 ────────────────────────────────────────────────── */
 @media (max-width: 480px) {
     .cx-stat { padding: 7px 8px; }

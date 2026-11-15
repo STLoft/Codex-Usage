@@ -40,8 +40,9 @@ const section = (iconName, title, content, aside = '') => `<section class="cx-se
 const alertBox = (msg, kind = 'warn') => `<div class="cx-alert ${kind}" role="alert">${icon(kind === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info')}<div>${msg}</div></div>`;
 const loading = () => `<div class="cx-muted cx-loading">${icon('fa-circle-notch', 'fa-spin')} 불러오는 중…</div>`;
 
-export function mount({ api, connect, target = document.body }) {
+export function mount({ api, connect, profiles = null, target = document.body }) {
     const state = { status: null, usage: null, models: [], error: '', busy: false, modelsBusy: false, modelsError: '', modelsUpdatedAt: null, selected: null, effort: '', stale: false, historyOpen: null, openDetails: new Set() };
+    state.profileEffort = null; state.profileBusy = false;
     let floatingEnabled = true;
     try { floatingEnabled = localStorage.getItem('codex-usage-floating') !== 'false'; } catch { /* storage disabled */ }
 
@@ -98,8 +99,9 @@ export function mount({ api, connect, target = document.body }) {
         return { x, y, w: r.width, h: r.height, vw, vh };
     }
 
-    function selectedModel() { return state.selected ?? (state.status?.settings?.defaultModel || state.models.find(m => m.isDefault)?.id || ''); }
-    function currentEffort() { return state.effort || state.status?.settings?.effort || 'medium'; }
+    const profileState = () => profiles?.snapshot(state.status?.settings?.effort || 'medium');
+    function selectedModel() { return profileState()?.current.model || state.selected || state.status?.settings?.defaultModel || state.models.find(m => m.isDefault)?.id || ''; }
+    function currentEffort() { return profileState()?.current.effort || state.effort || state.status?.settings?.effort || 'medium'; }
     // 서버(/settings)가 받는 단계만 보여 준다. CLI 목록의 max·ultra 등은 저장이 거절되므로 뺀다.
     function efforts() {
         const model = state.models.find(m => m.id === selectedModel());
@@ -118,7 +120,7 @@ export function mount({ api, connect, target = document.body }) {
     function viewHero(s) {
         const ok = s?.loggedIn && !state.stale;
         const title = !s ? '연결 확인 중…' : s.loggedIn ? 'ChatGPT / CLI 연결됨' : s.available ? '로그인 필요' : 'Codex CLI 연결 안 됨';
-        const meta = [selectedModel() ? `<span class="cx-mono">${esc(selectedModel())}</span>` : '', `추론 ${esc(currentEffort())}`, s?.planType ? esc(s.planType) : ''].filter(Boolean).join(' · ');
+        const meta = [profileState()?.current.name ? esc(profileState().current.name) : '', selectedModel() ? `<span class="cx-mono">${esc(selectedModel())}</span>` : '', `추론 ${esc(currentEffort())}`, s?.planType ? esc(s.planType) : ''].filter(Boolean).join(' · ');
         return `<div class="cx-box cx-hero ${ok ? 'ok' : ''}">
             <div class="cx-hero-top">
                 <span class="cx-dot" data-level="${ok ? 'ok' : s?.available ? 'idle' : 'down'}"></span>
@@ -190,21 +192,42 @@ export function mount({ api, connect, target = document.body }) {
         const current = selectedModel();
         const list = state.models.map(m => {
             const on = m.id === current;
-            return `<button type="button" class="cx-model ${on ? 'is-current' : ''}" data-model="${esc(m.id)}" role="radio" aria-checked="${on}" title="${on ? '사용 중' : '눌러서 실리태번 대화 연결과 기본 모델을 이 모델로 설정'}">
+            return `<button type="button" class="cx-model ${on ? 'is-current' : ''}" data-model="${esc(m.id)}" role="radio" aria-checked="${on}" title="${on ? '사용 중' : '눌러서 현재 대화 연결에 입력'}">
                 <span class="cx-radio"></span><span class="cx-model-id">${esc(m.id)}</span>
                 <span class="cx-model-badges">${m.isDefault ? '<span class="cx-badge">CLI 기본</span>' : ''}</span></button>`;
         }).join('');
-        const note = `${state.modelsUpdatedAt ? `CLI 목록 · ${esc(clock(state.modelsUpdatedAt))}` : 'CLI 목록 조회 전'} · 눌러서 대화 연결과 기본 모델로 설정`;
+        const note = `${state.modelsUpdatedAt ? `CLI 목록 · ${esc(clock(state.modelsUpdatedAt))}` : 'CLI 목록 조회 전'} · 눌러서 현재 대화 연결에 입력`;
         return `${state.modelsError ? alertBox(`모델 조회 실패: ${esc(state.modelsError)}${state.models.length ? ' · 마지막 목록을 유지합니다.' : ''}`) : ''}
             ${list ? `<div class="cx-models" role="radiogroup">${list}</div>` : '<div class="cx-muted cx-empty">아직 모델 목록이 없습니다. 로그인 후 새로고침하거나 아래 설정에서 모델 ID를 직접 입력하세요.</div>'}
             ${current && !state.models.some(m => m.id === current) ? `<div class="cx-note">직접 입력한 모델 사용 중: <span class="cx-mono">${esc(current)}</span></div>` : ''}
             <div class="cx-note">${note}</div>`;
+    }
+    function viewProfiles() {
+        const p = profileState(), value = state.profileEffort ?? p.effort;
+        const ready = state.status?.capabilities?.profileReasoning === true;
+        const model = state.models.find(m => m.id === p.model);
+        const supported = (model?.efforts?.length ? model.efforts : ['low', 'medium', 'high']).filter(e => SERVER_EFFORTS.includes(e));
+        const values = [...new Set([...supported, value].filter(e => SERVER_EFFORTS.includes(e)))];
+        return `<div class="cx-profile-box"><div class="cx-sub-head">${icon('fa-sliders')}연결 프로필별 추론 설정</div>
+            <label class="cx-field"><span>연결 프로필</span><select class="text_pole" id="cx-profile" ${state.profileBusy || !p.profiles.length ? 'disabled' : ''}>
+                <option value="" disabled ${!p.id ? 'selected' : ''}>${p.profiles.length ? 'Codex 연결 프로필 선택' : '저장된 Codex 연결 프로필 없음'}</option>
+                ${p.profiles.map(v => `<option value="${esc(v.id)}" ${v.id === p.id ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select></label>
+            <label class="cx-field"><span>모델</span><input class="text_pole cx-mono" id="cx-profile-model" readonly value="${esc(p.model)}" placeholder="프로필에 저장된 모델"></label>
+            <label class="cx-field"><span>추론 단계</span><select class="text_pole" id="cx-profile-effort" ${!p.id || state.profileBusy ? 'disabled' : ''}>
+                <option value="" ${!value ? 'selected' : ''}>기본값 사용 (${esc(state.status?.settings?.effort || 'medium')})</option>
+                ${values.map(v => `<option value="${esc(v)}" ${v === value ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+            <button class="menu_button cx-btn cx-profile-save" data-action="profile-save" ${!p.id || state.profileBusy || !ready ? 'disabled' : ''}>${state.profileBusy ? '프로필 전환 중…' : '이 프로필에 저장'}</button>
+            <div class="cx-note">${p.profiles.length ? '선택한 프로필에만 저장됩니다. 프로필을 바꾸면 모델과 추론이 함께 적용됩니다.' : 'SillyTavern API 화면에서 Codex 주소와 모델을 연결 프로필로 먼저 저장하세요.'}</div></div>
+            ${state.status && !ready ? alertBox('프로필별 추론을 사용하려면 Codex Bridge 서버 플러그인을 업데이트하고 재시작하세요.') : ''}
+            <div class="cx-profile-active"><b>현재 적용</b><div>${p.current.isCodex ? `${esc(p.current.name || '프로필 없이 연결')}<small>${esc(p.current.model)} · ${esc(p.current.effort)}</small>` : '다른 API 연결 사용 중'}</div></div>
+            ${p.id && p.current.isCodex && !p.current.matches ? '<div class="cx-note">현재 API 설정의 모델이 프로필과 다릅니다. 프로필을 다시 불러오거나 SillyTavern에서 프로필을 업데이트하세요.</div>' : ''}`;
     }
     function viewSettings(s) {
         const open = state.openDetails.has('settings');
         return `<details class="cx-details" data-section="settings" ${open ? 'open' : ''}>
             <summary>${icon('fa-gear')}설정${icon('fa-chevron-down', 'cx-chev')}</summary>
             <div class="cx-details-body">
+                ${profiles ? viewProfiles() + '<div class="cx-divider"></div>' : ''}
                 <div class="cx-sub-head">${icon('fa-thumbtack')}플로팅 사용량</div>
                 <label class="cx-check"><input id="cx-floating" type="checkbox" ${floatingEnabled ? 'checked' : ''}>화면에 잔량 표시</label>
                 <div class="cx-form2">
@@ -213,13 +236,13 @@ export function mount({ api, connect, target = document.body }) {
                 </div>
                 <div class="cx-note">플로팅은 끌어서 옮길 수 있어요 · 이 기기에만 저장 · 마법봉 메뉴 숫자도 같은 설정을 따름</div>
                 <div class="cx-divider"></div>
-                <div class="cx-sub-head">${icon('fa-sliders')}Codex</div>
+                ${profiles ? `<details class="cx-details" data-section="manual" ${state.openDetails.has('manual') ? 'open' : ''}><summary>모델 ID 직접 입력</summary><div class="cx-details-body"><label class="cx-field"><span>모델 ID</span><input class="text_pole cx-mono" id="cx-custom-model" value="${esc(selectedModel())}" placeholder="목록에 없는 모델" autocomplete="off"></label><button class="menu_button cx-btn" data-action="connect-model">연결에 입력</button><div class="cx-note">모델을 바꾼 뒤 연결 프로필도 SillyTavern에서 저장하세요.</div></div></details>` : `<div class="cx-sub-head">${icon('fa-sliders')}Codex</div>
                 <div class="cx-form">
                     <label class="cx-field"><span>추론 단계</span><select class="text_pole" id="cx-effort">${efforts().map(v => `<option value="${esc(v)}" ${v === currentEffort() ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
                     <label class="cx-field"><span>모델 ID 직접 입력</span><input class="text_pole cx-mono" id="cx-custom-model" value="${esc(selectedModel())}" placeholder="목록에 없는 모델" autocomplete="off"></label>
                     <button class="menu_button cx-btn" data-action="save" ${!s?.canManage ? 'disabled title="SillyTavern admin 계정만 저장할 수 있습니다"' : 'title="기본 모델·추론 단계를 저장하고 대화 연결에 입력"'}>적용</button>
                 </div>
-                <div class="cx-note">API 키 없이 연결 프로필 저장하면 됩니다.</div>
+                <div class="cx-note">API 키 없이 연결 프로필 저장하면 됩니다.</div>`}
                 <div class="cx-divider"></div>
                 <div class="cx-actions">
                     <button class="menu_button cx-btn" data-action="reset" ${!s?.canManage ? 'disabled title="SillyTavern admin 계정만 초기화할 수 있습니다"' : 'title="이 Bridge의 토큰 사용 기록만 지웁니다 (공식 잔량에는 영향 없음)"'}>${icon('fa-eraser')}사용량 기록 초기화</button>
@@ -295,6 +318,7 @@ export function mount({ api, connect, target = document.body }) {
         state.busy = true; render();
         try {
             const [status, usage] = await Promise.all([api('/status' + (force ? '?refresh=1' : '')), api('/usage')]);
+            profiles?.setEndpoint(status.apiUrl);
             state.status = status; state.usage = usage; state.error = ''; state.stale = false;
         } catch (e) { state.error = e.message; state.stale = true; }
         finally { state.busy = false; render(); }
@@ -315,11 +339,12 @@ export function mount({ api, connect, target = document.body }) {
         const allowed = (info?.efforts || []).filter(v => SERVER_EFFORTS.includes(v));
         if (allowed.length && !allowed.includes(currentEffort())) state.effort = allowed.includes(info.defaultEffort) ? info.defaultEffort : allowed.includes('medium') ? 'medium' : allowed[0];
         render();
-        if (state.status?.canManage) await api('/settings', { defaultModel: model, effort: currentEffort() });
+        if (!profiles && state.status?.canManage) await api('/settings', { defaultModel: model, effort: currentEffort() });
         if (state.status?.apiUrl) connect(state.status.apiUrl, model);
         await refresh(true);
     }
 
+    const stopProfiles = profiles?.subscribe(() => { state.profileEffort = null; state.error = ''; render(); });
     async function open() { if (!dialog.open) dialog.showModal(); await Promise.all([refresh(), loadModels()]); }
     for (const el of [menu, drawer.querySelector('[data-cx-open]')]) el.addEventListener('click', open);
     for (const el of [menu, floating]) el.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
@@ -333,6 +358,11 @@ export function mount({ api, connect, target = document.body }) {
         if (d.open) state.openDetails.add(d.dataset.section); else state.openDetails.delete(d.dataset.section);
     }, true);
     content.addEventListener('change', event => {
+        if (event.target.id === 'cx-profile-effort') state.profileEffort = event.target.value;
+        if (event.target.id === 'cx-profile' && event.target.value) {
+            const id = event.target.value; state.profileBusy = true; state.profileEffort = null; render();
+            profiles.select(id).catch(e => { state.error = e.message; }).finally(() => { state.profileBusy = false; render(); });
+        }
         if (event.target.id === 'cx-effort') state.effort = event.target.value;
         if (event.target.id === 'cx-floating') setFloating(event.target.checked);
         if (event.target.id === 'cx-float-period') {
@@ -358,6 +388,17 @@ export function mount({ api, connect, target = document.body }) {
             const action = button.dataset.action;
             if (action === 'refresh') return await refresh(true);
             if (action === 'models') return await loadModels(true);
+            if (action === 'profile-save') {
+                if (!state.status?.capabilities?.profileReasoning) throw new Error('Codex Bridge 서버 플러그인을 업데이트하고 재시작하세요.');
+                profiles.save(content.querySelector('#cx-profile').value, content.querySelector('#cx-profile-effort').value, state.models);
+                window.toastr?.success('선택한 연결 프로필의 추론 설정을 저장했습니다.', 'Codex Usage');
+                return;
+            }
+            if (action === 'connect-model') {
+                const model = content.querySelector('#cx-custom-model').value.trim();
+                if (!model) throw new Error('모델 ID를 입력하세요.');
+                return await useModel(model);
+            }
             if (action === 'connect') {
                 if (!selectedModel()) throw new Error('모델을 선택하거나 설정에서 모델 ID를 입력하세요.');
                 connect(state.status.apiUrl, selectedModel()); return;
@@ -406,5 +447,5 @@ export function mount({ api, connect, target = document.body }) {
     document.addEventListener('visibilitychange', visible);
     const timer = setInterval(() => { if (!document.hidden && (floatingEnabled || dialog.open)) refresh(); }, 60000);
     draw(); refresh();
-    return { open, refresh, destroy() { clearInterval(timer); document.removeEventListener('visibilitychange', visible); window.removeEventListener('resize', replace); window.visualViewport?.removeEventListener('resize', replace); dialog.remove(); floating.remove(); drawer.remove(); menu.remove(); } };
+    return { open, refresh, destroy() { stopProfiles?.(); clearInterval(timer); document.removeEventListener('visibilitychange', visible); window.removeEventListener('resize', replace); window.visualViewport?.removeEventListener('resize', replace); dialog.remove(); floating.remove(); drawer.remove(); menu.remove(); } };
 }
